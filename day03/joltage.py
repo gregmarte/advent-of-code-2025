@@ -19,6 +19,27 @@ def joltage2(n:int):
   
     return int(str(first) + str(second))
 
+def joltage12(n:int):
+    Digits:int = 12
+    solution = [(str)(n)[i] for i in range(0, Digits)]
+
+    for c in str(n)[Digits:]:
+        for p in range (0,Digits-1):   
+            if solution[p+1] > solution[p]:
+                for r in range (p, Digits-1):
+                    solution[r] = solution[r+1]
+                solution[Digits-1] = c
+                break
+
+        if c > solution[Digits-1]:
+            solution[Digits-1] = c
+
+    answer = "".join(solution)         
+    logging.info(f"Battery value: {answer}")
+  
+    return int(answer)
+
+
 
 def process_file(file_path:str):
     """
@@ -37,7 +58,7 @@ def process_file(file_path:str):
 
         with open(file_path, 'r') as file:
             for line in file:
-                summation+=joltage2(int(line))
+                summation+=joltage12(int(line))
                                 
         print("\n✅ File processing complete.")
         return summation
