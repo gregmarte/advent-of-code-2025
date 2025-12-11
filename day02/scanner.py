@@ -1,7 +1,51 @@
 import os
 import re
+import logging
 
+logging.basicConfig(level=logging.INFO)
 INPUT_FILE = "input.txt"
+
+def invalid_logic_case1(x:int):
+    if len(str(x)) % 2 == 1:
+        return 0
+    my_segment:int = (len(str(x)) // 2)
+    pattern2 = rf"(\d{{{my_segment}}})(\d{{{my_segment}}})"
+    match2 = re.match(pattern2, str(x))
+    
+    if match2:
+        first_half = int(match2.group(1))
+        second_half = int(match2.group(2))
+        if first_half == second_half:
+            print(f"Invalid id found: {x}")
+            return x
+    return 0
+
+def invalid_logic_case2(x:int):
+    max_pattern_length:int = len(str(x)) // 2
+    
+    for p in range(max_pattern_length,0,-1):
+        logging.debug(f"max_pattern: {max_pattern_length}, p: {p}")
+        if len(str(x)) % p != 0:
+            logging.debug(f"next please. x: {x}, p: {p}")
+            continue
+
+        logging.debug(f"a) {x}, b) {str(x)[0]}, c) {str(x)[1]}")
+
+        values = [str(x)[i:i+p] for i in range(0, len(str(x)), p)]
+        logging.debug(f"values: {values}, p: {p}")
+        sameness:bool = True
+
+        for v in values:
+            logging.debug(f"v: {v}, values[0]: {values[0]}")
+            if values[0] != v:
+                sameness = False
+                break
+
+        if sameness:
+            logging.info(f"invalid id found: {x}")
+            return x
+
+    return 0
 
 def process_file(file_path:str):
     """
@@ -31,18 +75,8 @@ def process_file(file_path:str):
                         range_stop = int(match.group(2)) 
                         
                         for x in range(range_start, range_stop+1,1):
-                            if len(str(x)) % 2 == 1:
-                                continue
-                            my_segment:int = (len(str(x)) // 2)
-                            pattern2 = rf"(\d{{{my_segment}}})(\d{{{my_segment}}})"
-                            match2 = re.match(pattern2, str(x))
-                            
-                            if match2:
-                                first_half = int(match2.group(1))
-                                second_half = int(match2.group(2))
-                                if first_half == second_half:
-                                    print(f"Invalid id found: {x}")
-                                    summation+=x
+                            #summation+=invalid_logic_case1(x)
+                            summation+=invalid_logic_case2(x)
                                 
         print("\n✅ File processing complete.")
         return summation
