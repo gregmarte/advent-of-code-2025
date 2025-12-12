@@ -4,7 +4,7 @@ import logging
 from typing import List, Tuple
 
 INPUT_FILE = "input.txt"
-logging.basicConfig(level=logging.CRITICAL)
+logging.basicConfig(level=logging.INFO)
 map: List[Tuple[int, int]] = []
 ingredients: List[int] = []
 
@@ -54,7 +54,7 @@ def is_fresh(item:int) -> bool:
             return True
     return False
 
-def main():
+def main_part1():
     fresh_list : List[int] = []
     initialize()
     for item in ingredients:
@@ -63,5 +63,83 @@ def main():
     print(f"Fresh items: {len(fresh_list)}")
 
 
+def main_part2():
+    count: int = 0
+
+    initialize()
+    all_fresh: List[Tuple[int, int]] = []
+    if len(map) == 0:
+        print("Error")
+    all_fresh.append(map[0])
+
+    for (new_min, new_max) in map:
+        logging.debug(f"Next Case: {new_min},{new_max}")
+        logging.debug(f"all_fresh: {all_fresh}")
+        for i, (existing_min, existing_max) in enumerate(all_fresh):
+            logging.debug(f"Case: {new_min},{new_max}. Handling item: {i}: {existing_min}, {existing_max} with all_fresh.length:{len(all_fresh)}")
+            logging.debug(f"all_fresh: {all_fresh}")
+            
+            # 6 cases (early/late, front/back, inside, over)
+            if new_min > existing_max: #early
+                logging.debug(f"Early")
+                if i == len(all_fresh)-1:
+                    logging.debug(f"No more ranges to check, adding")
+                    all_fresh.append((new_min,new_max))
+                    break
+                continue
+            elif new_max < existing_min: #late
+                logging.debug(f"Late")
+                all_fresh.insert(i,(new_min,new_max))
+                break
+            elif new_min >= existing_min and new_max <= existing_max:  #inside
+                logging.debug(f"Inside")
+                break
+            elif new_min < existing_min and new_max > existing_max:  #outside
+                logging.debug(f"Outside")
+                #need to get other ranges involved
+               
+                while True:
+                    if len(all_fresh) == i+1 or all_fresh[i+1][0] > new_max:
+                        all_fresh[i] = (new_min, new_max)
+                        break
+                    elif all_fresh[i+1][1] >= new_max:
+                        all_fresh[i] = (new_min, all_fresh[i+1][1])
+                        all_fresh.pop(i+1)
+                        break
+                    else:
+                        all_fresh.pop(i+1)  
+                break
+
+            elif new_min < existing_min and new_max <= existing_max: #front
+                logging.debug(f"Front")
+                all_fresh[i] = (new_min, existing_max)
+                break
+            elif new_min >= existing_min and new_max > existing_max: #back
+                logging.debug(f"Back")
+                #need to get other ranges involved
+                while True:
+                    if len(all_fresh) == i+1 or all_fresh[i+1][0] > new_max:
+                        all_fresh[i] = (existing_min, new_max)
+                        break
+                    elif all_fresh[i+1][1] >= new_max:
+                        all_fresh[i] = (existing_min, all_fresh[i+1][1])
+                        all_fresh.pop(i+1)
+                        break
+                    else:
+                        all_fresh.pop(i+1)
+                break
+
+            else:
+                logging.critical("Case not handled. (early/late, front/back, inside, over) ")
+
+    print(f"Final fresh list: {all_fresh}")
+
+    for (min, max) in all_fresh:
+        count += max-min+1
+    
+    print(f"Fresh items: {count}")
+                
+
+
 if __name__ == "__main__":
-    main()
+    main_part2()
