@@ -1,5 +1,11 @@
 {
-    "python-env.workspaceSearchPaths": [
-        "day08"
-    ]
+     "python.analysis.diagnosticSeverityOverrides": {
+      
+        "reportArgumentType": "none", 
+        "reportIndexIssue": "none",
+        "reportUnknownArgumentType": "none", 
+        "reportAttributeAccessIssue": "none", 
+        "reportUnknownMemberType": "none"
+   
+    }
 }

@@ -1,0 +1,5 @@
+numpy
+scipy
+scipy-stubs
+h5py
+h5py-stubs
