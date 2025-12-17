@@ -1,25 +1,33 @@
 import os
 import logging
 import re
-import numpy as np
-import h5py
 
-logging.basicConfig(level=logging.DEBUG)
+from typing import Set
 
-red_tiles: list[tuple[int,int]] = []        #x,y coordinates
-areas: list[tuple[int, int, int]] = []  #area, point1, point2
+logging.basicConfig(level=logging.INFO)
 
-map_size:int = 100000
-non_prod:bool = False
-MY_MAP = "large_map"
+#There are 1000 red tiles.
+#Let map[(x,y)] be my points
+#where x_map(x)= is the furthest x point used. 
+x_map:list[int] = []
+y_map:list[int] = []
+
+red_tiles: list[tuple[int,int]] = []    #x_map,y_map coordinates
+areas: list[tuple[int, tuple[int,int], tuple[int,int]]] = []  #area, point1, point2
+
+map_size:int
+map: dict[tuple[int, int], bool] 
+
 TEST_FILENAME = 'input.txt'
 
-def initialize(file_name:str, map_name:str):
-    global red_tiles
-    global min_x, min_y, max_x, max_y
+def initialize(file_name:str):
+    global red_tiles, map, map_size, x_map, y_map
+    set_x: Set[int] = set()
+    set_y: Set[int] = set()
    
     file_location = os.path.join("day09", "tests", file_name)
     
+    counter:int = 0
     with open(file_location, 'r') as file:
         for line in file:
             pattern = r"(\d+),(\d+)"
@@ -27,87 +35,98 @@ def initialize(file_name:str, map_name:str):
 
             if match:
                 red_tiles.append((int(match.group(1)), int(match.group(2))))
-
-    with h5py.File(map_name+'.hdf5', 'w') as f:
+                counter+=1
     
-        f.create_dataset(
-            map_name,
-            shape=(map_size, map_size), 
-            dtype=np.bool_,
-            fillvalue=True  
-        )
+    map_size = counter+2 #+2 for a boundary/border, to support filling from outside area.
+    
+    set_x.add(-1)
+    set_y.add(-1)
+    for (my_x,my_y) in red_tiles:
+        set_x.add(my_x)
+        set_x.add(my_x+1)
+        set_y.add(my_y)
+        set_y.add(my_y+1)
+    set_x.add(map_size)
+    set_y.add(map_size)
+
+    x_map = sorted(set_x)
+    y_map = sorted(set_y)
+
+    map = {
+        (x, y): True
+        for x in range(map_size)
+        for y in range(map_size)
+    }
 
     logging.debug(f"Points:\n{red_tiles}")
+    logging.debug(f"\nx_map: {x_map}\ny_map:{y_map}")
     
-    #Type checking
-    # with h5py.File(largemap+'.hdf5', 'r+') as f:
-    #     # Retrieve the dataset object
-    #     map_dataset = f[map_name]
-        
-    #     slice_region = np.s_[50, 60:71]
-        
-    #     map_dataset[slice_region] = True   # pyright: ignore, see README.md
-    #     #logging.debug(f"true?: map_dataset {map_dataset[(50,65)]}, false?: {map_dataset[5,5]}") 
-
     
+def print_map():
+    #testing 
+    if map_size < 25:
+        for x in range(0, len(x_map)):
+            for y in range(0, len(y_map)):
+                print(f"{int(map[x,y])}", end="")
+            print("")
 
-def build_map(map_name:str, paths_as:bool):
+def build_map(paths_as:bool):
+    iter=0
 
-    with h5py.File(map_name+'.hdf5', 'r+') as f:
-        map_dataset = f[map_name]
+    for tile1,tile2 in zip(red_tiles, red_tiles[1:] + red_tiles[:1]):
 
-        iter=0
+        iter+=1
+        x1,y1 = tile1
+        x2,y2 = tile2
 
-        for tile1,tile2 in zip(red_tiles[:-1] , red_tiles[1:]):
-            iter+=1
-            row_min = min(tile1[0], tile2[0])
-            row_max = max(tile1[0], tile2[0])
-            col_min = min(tile1[1], tile2[1])
-            col_max = max(tile1[1], tile2[1])
+        x1_t = x_map.index(x1)
+        y1_t = y_map.index(y1)
+        x2_t = x_map.index(x2)
+        y2_t = y_map.index(y2)
+        logging.debug(f"Transforms: {x1_t},{y1_t}, {x2_t}, {y2_t}")
 
-            row_slice = slice(row_min, row_max + 1)
-            col_slice = slice(col_min, col_max + 1)
+        
+        row_min = min(x1_t, x2_t)
+        row_max = max(x1_t, x2_t)
+        col_min = min(y1_t,y2_t)
+        col_max = max(y1_t,y2_t)
+        logging.debug(f"Map: {row_min},{row_max}, {col_min}, {col_max}")
 
-            slice_region = np.s_[row_slice, col_slice]
-            map_dataset[slice_region] = paths_as
-            logging.debug(f"i:{iter}, adding {tile1} and {tile2}")
+        for x in range(row_min, row_max + 1):
+            for y in range(col_min, col_max + 1):
+                logging.debug(f"Adding: {x},{y}, for {tile1} to {tile2}")
+                map[(x,y)] = paths_as
 
-        #testing 
-        if non_prod and map_size == 10:
-            full_map_array = f[map_name][()] # pyright: ignore[reportUnknownVariableType], see README.md
-            logging.debug(full_map_array.astype(int)) # pyright: ignore[reportUnknownArgumentType, reportAttributeAccessIssue, reportUnknownMemberType]
+        logging.debug(f"i:{iter}, adding {tile1} to {tile2}")
 
-    return
-def fill_map(map_name:str):
-    with h5py.File(map_name+'.hdf5', 'r+') as f:
-        map_dataset = f[map_name]
+        print_map()
 
-        to_check = [(0,0)]
-        iterations = 0
+def fill_map():
+   
+    to_check = [(0,0)] #begin 'water fill' pattern at border. Note: find a better way.
+    iterations = 0
 
-        while len(to_check) > 0 and iterations < map_size * map_size * 4:
-            iterations+=1
-            (x,y) = to_check.pop()
+    while len(to_check) > 0 and iterations < map_size * map_size * 4:
+        iterations+=1
+        (x,y) = to_check.pop()
+        if iterations%100 == 0:
             logging.debug(f"x: {x}, y:{y}, i:{iterations}")
-            if map_dataset[x,y] == True:
-                map_dataset[x,y] = False
-                if (x > 0):
-                    to_check.append((x-1,y))
-                if (x < map_size - 1):
-                    to_check.append((x+1,y))
-                if (y > 0):
-                    to_check.append((x, y-1))
-                if (y < map_size - 1):
-                    to_check.append((x,y+1))
-    
-        #testing 
-        if non_prod and map_size == 10:
-            full_map_array = f[map_name][()] # pyright: ignore[reportUnknownVariableType], see README.md
-            logging.debug(full_map_array.astype(int)) # pyright: ignore[reportUnknownArgumentType, reportAttributeAccessIssue, reportUnknownMemberType]
+        if map[x,y] == True:
+            map[x,y] = False
+            if (x > 0):
+                to_check.append((x-1,y))
+            if (x < map_size - 1):
+                to_check.append((x+1,y))
+            if (y > 0):
+                to_check.append((x, y-1))
+            if (y < map_size - 1):
+                to_check.append((x,y+1))
+
+    print_map()
 
     return
 
-def calculate(map_name:str):
+def calculate():
     global areas
     for i in range(0, len(red_tiles)):
         for j in range(i+1,len(red_tiles)):
@@ -115,46 +134,47 @@ def calculate(map_name:str):
             x2,y2 = red_tiles[j]
 
             area = (abs(x1-x2)+1)*(abs(y1-y2)+1)
-            areas.append((area, i, j))
+            areas.append((area, red_tiles[i], red_tiles[j]))
 
     areas.sort(key=lambda x: x[0], reverse=False) #smallest is at front, .pop() to get largest.
 
     #now find the largest one where everything inside is true.
-    with h5py.File(map_name+'.hdf5', 'r+') as f:
-        map_dataset = f[map_name]
-        iter=0
+    iter=0
 
-        while len(areas) > 0 or iter > 1000:
-            iter+=1
-            dist,i,j = areas.pop() # type: ignore
+    while len(areas) > 0 or iter > 1000:
+        iter+=1
+        area,i,j = areas.pop() 
 
-            row_min = min(red_tiles[i][0], red_tiles[j][0]) # type: ignore
-            row_max = max(red_tiles[i][0], red_tiles[j][0]) # type: ignore
-            col_min = min(red_tiles[i][1], red_tiles[j][1]) # type: ignore
-            col_max = max(red_tiles[i][1], red_tiles[j][1]) # type: ignore
+        row_min = min(i[0], j[0]) 
+        row_max = max(i[0], j[0]) 
+        col_min = min(i[1], j[1]) 
+        col_max = max(i[1], j[1]) 
 
-            row_slice = slice(row_min, row_max + 1)
-            col_slice = slice(col_min, col_max + 1)
+        #transform
+        row_min_t = x_map.index(row_min)
+        row_max_t = x_map.index(row_max)
+        col_min_t = y_map.index(col_min)
+        col_max_t = y_map.index(col_max)
 
-            slice_region = np.s_[row_slice, col_slice]
-            if np.all(map_dataset[slice_region]): # type: ignore
-                logging.info(f"Area found. area: {dist}, p1: {red_tiles[i]}, p2: {red_tiles[j]}")
-                return int(dist)
+        all_are_true = all(
+            map[(x, y)]
+            for x in range(row_min_t, row_max_t)  
+            for y in range(col_min_t, col_max_t) 
+        )
+
+        if all_are_true:
+            logging.info(f"Area found. area: {area}, p1: {i}, p2: {j}")
+            return int(area)
 
     raise Exception("item not found in Areas")
     
 
 def main():
-    global non_prod, map_size
-
-    non_prod = False #False
-    map_size = 100000   #100000    
-
-    initialize(TEST_FILENAME, MY_MAP)
-    build_map(MY_MAP,paths_as=False)
-    fill_map(MY_MAP)
-    build_map(MY_MAP,paths_as=True)
-    calculate(MY_MAP)
+    initialize(TEST_FILENAME)
+    build_map(paths_as=False)
+    fill_map()
+    build_map(paths_as=True)
+    calculate()
     
     return
 
